@@ -8,6 +8,7 @@ from ultralytics import YOLO
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QPushButton, QWidget, QFileDialog
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QTimer, Qt
+from export_to_cvat import run_export
 
 # SKU mapping
 SKU_MAPPING = {
@@ -24,6 +25,7 @@ class YOLOVideoApp(QWidget):
         self.skip_frames = skip_frames
         self.frame_counter = 0
         self.last_time = time.time()
+        self.job_status = False
 
         self.queue = queue.Queue(maxsize=10)
         self.running = False
@@ -47,9 +49,11 @@ class YOLOVideoApp(QWidget):
         self.cpu_label = QLabel("CPU Usage: 0%")
         self.ram_label = QLabel("RAM Usage: 0%")
         self.fps_label = QLabel("FPS: 0")
+        self.job_status_label = QLabel("No Export Jobs Running")
         self.layout.addWidget(self.cpu_label)
         self.layout.addWidget(self.ram_label)
         self.layout.addWidget(self.fps_label)
+        self.layout.addWidget(self.job_status_label)
 
         # Buttons
         self.upload_button = QPushButton("Upload Video")
@@ -67,6 +71,10 @@ class YOLOVideoApp(QWidget):
         self.stop_button = QPushButton("Stop Video")
         self.stop_button.clicked.connect(self.stop_video_task)
         self.layout.addWidget(self.stop_button)
+
+        self.export_button = QPushButton("Export CVAT 1.1")
+        self.export_button.clicked.connect(self.export_cvat)
+        self.layout.addWidget(self.export_button)
 
         self.setLayout(self.layout)
 
@@ -157,6 +165,48 @@ class YOLOVideoApp(QWidget):
         self.display_thread = threading.Thread(target=self.display_frames, daemon=True)
         self.receive_thread.start()
         self.display_thread.start()
+
+    def export_cvat(self):
+        if not self.video_path:
+            print("No video selected. Please upload a video.")
+            return
+
+        # Prompt user to select model file
+        model_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Model File",
+            "",
+            "Model Files (*.pt *.onnx *.pth)"
+        )
+        if not model_path:
+            print("Model file selection canceled.")
+            return
+
+        # Prompt user to select an output folder
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Folder",
+            ""
+        )
+        if not folder_path:
+            print("Output folder selection canceled.")
+            return
+
+        def after_export():
+            self.job_status = False
+            self.job_status_label.setText("No Jobs Running / Job Completed.")
+            print("Export completed successfully.")
+
+        # Run export
+        print("Exporting to CVAT 1.1 format...")
+        self.job_status = True
+        self.job_status_label.setText("Export job in progress...")
+        threading.Thread(
+            target=run_export,
+            args=(self.video_path, model_path, folder_path, after_export),
+            daemon=True
+        ).start()
+
 
     def update_stats(self):
         """Update CPU and RAM usage stats."""

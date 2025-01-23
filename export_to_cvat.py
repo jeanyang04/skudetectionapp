@@ -271,6 +271,12 @@ def process_video(video_path, model_path, skip_frames=5, output_file="annotation
     export_to_cvat(video_path, detections_per_frame, frame_count, output_file)
     logging.info("Export to CVAT XML completed.")
 
+def run_export(video_path, model_path, output_path, callback=None):
+    output_file_path = output_path + "/annotations.xml"
+    process_video(video_path, model_path, skip_frames=1, output_file=output_file_path)
+    if callback:
+        callback()
+
 if __name__ == "__main__":
     logging.info("Starting video processing and annotation export...")
     video_path = "test/in/cam1_FM002_FM003_caesar_soba_160125_220125.mp4"  # Replace with your .mp4 path
