@@ -1,6 +1,7 @@
 import cv2
 from ultralytics import YOLO
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -272,7 +273,8 @@ def process_video(video_path, model_path, skip_frames=5, output_file="annotation
     logging.info("Export to CVAT XML completed.")
 
 def run_export(video_path, model_path, output_path, callback=None):
-    output_file_path = output_path + "/annotations.xml"
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    output_file_path = os.path.join(output_path, f"{video_name}.xml")
     process_video(video_path, model_path, skip_frames=1, output_file=output_file_path)
     if callback:
         callback()
